@@ -22,6 +22,11 @@ GLfloat sVVerts[] = {
     blockSize,blockSize,0.f,
     -blockSize,blockSize,0.f
 };
+
+//矩阵坐标
+GLfloat ypos = 0.f;
+GLfloat xpos = 0.f;
+
 //窗口大小改变时接受新的宽、高,和第一次创建
 void ChangeISize(int w, int h) {
     glViewport(0, 0, w, h);
@@ -48,38 +53,43 @@ void SetupRC() {
 }
 
 void SpecialKeys(int key, int x,int y) {
-    GLfloat setpSize = 0.005f;
-    GLfloat blockX = sVVerts[0];
-    GLfloat blockY = sVVerts[10];
+    GLfloat setpSize = 0.025f;
+//    GLfloat blockX = sVVerts[0];
+//    GLfloat blockY = sVVerts[10];
     if (key == GLUT_KEY_UP) {
-        blockY += setpSize;
+        ypos += setpSize;
     }
     if (key == GLUT_KEY_DOWN) {
-        blockY -= setpSize;
+        ypos -= setpSize;
     }
-    
+
     if (key == GLUT_KEY_RIGHT) {
-        blockX += setpSize;
+        xpos += setpSize;
     }
-    
+
     if (key == GLUT_KEY_LEFT) {
-        blockX -= setpSize;
+        xpos -= setpSize;
     }
-    //A点
-    sVVerts[0] = blockX;
-    sVVerts[1] = blockY - blockSize * 2;
+    //边界检测,这里只检测最左侧
+    if (xpos < -1.f + blockSize) {
+        xpos = -1.f + blockSize;
+    }
     
-    sVVerts[3] = blockX + blockSize * 2;
-    sVVerts[4] = blockY - blockSize * 2;
-    
-    sVVerts[6] = blockX + blockSize * 2;
-    sVVerts[7] = blockY;
-    
-    sVVerts[9] = blockX;
-    sVVerts[10] = blockY;
-    
-    triangleBatch.CopyVertexData3f(sVVerts);
-    //触发renderScene
+//    //A点
+//    sVVerts[0] = blockX;
+//    sVVerts[1] = blockY - blockSize * 2;
+//
+//    sVVerts[3] = blockX + blockSize * 2;
+//    sVVerts[4] = blockY - blockSize * 2;
+//
+//    sVVerts[6] = blockX + blockSize * 2;
+//    sVVerts[7] = blockY;
+//
+//    sVVerts[9] = blockX;
+//    sVVerts[10] = blockY;
+//
+//    triangleBatch.CopyVertexData3f(sVVerts);
+//    //触发renderScene
     glutPostRedisplay();
 }
 
@@ -89,8 +99,22 @@ void RenderScene(void) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     //设置一组浮点数来表示红色
     GLfloat vRed[] = {1.f,0.f,0.f,1.f};
-    //使用固定着色器,GLT_SHADER_IDENTITY,单元着色器
-    shaderManager.UseStockShader(GLT_SHADER_IDENTITY,vRed);
+//    //使用固定着色器,GLT_SHADER_IDENTITY,单元着色器
+//    shaderManager.UseStockShader(GLT_SHADER_IDENTITY,vRed);
+    //4行4列的矩阵,openGL里有x,y,z,w(缩放因子,默认为1.0)
+    //存放结果
+    M3DMatrix44f mFinalTransform,mTransform,mRotationMtix;
+    
+    //平移
+    m3dTranslationMatrix44(mTransform, xpos, ypos, 0.f);
+    //旋转
+    static float zRot = 0.f;
+    zRot += 0.5f;
+    m3dRotationMatrix44(mRotationMtix, zRot / 180.f * M_PI, 0.f, 0.f, 1.f);
+    //矩阵相乘
+    m3dMatrixMultiply44(mFinalTransform, mTransform, mRotationMtix);
+    //平面着色器
+    shaderManager.UseStockShader(GLT_SHADER_FLAT,mFinalTransform,vRed);
     //提交着色器,绘制
     triangleBatch.Draw();
     //将在后台缓冲区进行渲染,在结束时交换到前台
